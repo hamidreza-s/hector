@@ -2,7 +2,6 @@
 
 -behaviour(application).
 
-%% Application callbacks
 -export([start/2]).
 -export([stop/1]).
 
@@ -11,6 +10,10 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
+
+    %% @TODO: make it configurable based on selected registry backend
+    application:start(syn),
+
     hector_sup:start_link().
 
 stop(_State) ->

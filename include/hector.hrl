@@ -1,55 +1,51 @@
 %%%===================================================================
-%%%Records
+%%% Macros
 %%%===================================================================
 
--record(hector_spec, {
-	  name :: hector_name(),
-	  handler :: hector_handler(),
-	  opts :: hector_opts()
-	 }).
+-define(REQUIRED(Field), error({field_required, Field})).
 
--record(hector_opts, {
+%%%===================================================================
+%%% Records
+%%%===================================================================
+
+-record(hector_actor, {
+	  name = ?REQUIRED(name) :: hector_actor_name(),
+	  handler = ?REQUIRED(handler) :: hector_actor_handler(),
 	  auto = false :: boolean(),
-	  blocking = false :: boolean()
-	 }).
-
--record(hector_req, {
-	  body :: any(),
-	  timeout :: milliseconds()
-	 }).
-
--record(hector_res, {
-	  body :: any(),
-	  elapsed :: milliseconds()
+	  blocking = false :: boolean(),
+	  node = node() :: node(),
+	  pid :: pid()
 	 }).
 
 %%%===================================================================
-%%% Hector Types
+%%% Base types
 %%%===================================================================
 
--type hector_spec() :: #hector_spec{}.
--type hector_opts() :: #hector_opts{}.
+-type hector_actor_name() :: string() | non_neg_integer().
+-type hector_actor_handler() :: module().
 
--type hector_name() :: atom() | string() | integer().
--type hector_ref() :: pid().
--type hector_handler() :: module().
+-type hector_actor() :: #hector_actor{}.
+-type hector_route() :: {hector_actor(), hector_actor()}.
+-type hector_path() :: list(hector_route()).
 
--type hector_exec() :: parallel | sequential | shuffle.
--type hector_path() :: [{hector_exec(), [hector_name()]}].
--type hector_future() :: fun(({ok, hector_res()} | {nok, hector_err()}) -> ok).
-
--type hector_err() :: any().
 -type hector_msg() :: any().
-
--type hector_req() :: #hector_req{}.
--type hector_res() :: #hector_res{}.
+-type hector_err() :: timeout
+		    | bad_request
+		    | field_required
+		    | duplicated_name
+		    | duplicated_id
+		    | any().
 
 %%%===================================================================
-%%% Misc Types
+%%% Base types (based on graph terminology)
+%%%===================================================================
+
+-type hector_vertex() :: hector_actor().
+-type hector_edge() :: hector_route().
+-type hector_graph() :: hector_path().
+
+%%%===================================================================
+%%% Misc types
 %%%===================================================================
 
 -type milliseconds() :: integer().
-
-%%%===================================================================
-%%% Macros
-%%%===================================================================
