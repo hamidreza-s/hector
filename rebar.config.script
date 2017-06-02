@@ -1,0 +1,40 @@
+%%-*- mode: erlang -*-
+
+DefaultRegistry = syn,
+Registry = case lists:keyfind(hector_registry, 1, CONFIG) of
+	       {hector_registry, RegistryVal} -> RegistryVal;
+	       false -> DefaultRegistry
+	   end,
+
+Deps0 = case lists:keyfind(deps, 1, CONFIG) of
+	    {deps, DepsVal} -> DepsVal;
+	    false -> []
+	end,
+
+
+Deps1 = case Registry of
+	    syn ->
+		[{syn, "1.4.0"} | Deps0];
+	    zookeeper ->
+		[{erlzk, "0.6.3"} | Deps0];
+	    redis ->
+		[{eredis, "1.0.8"} | Deps0]
+	end,
+
+Opts0 = case lists:keyfind(erl_opts, 1, CONFIG) of
+	    {erl_opts, OptsVal} -> OptsVal;
+	    false -> []
+	end,
+
+Opts1 = case Registry of
+	    syn ->
+		[{d, 'HECTOR_REGISTRY', hector_registry_syn} | Opts0];
+	    zookeeper ->
+		[{d, 'HECTOR_REGISTRY', hector_registry_zookeeper} | Opts0];
+	    redis ->
+		[{d, 'HECTOR_REGISTRY', hector_registry_redis} | Opts0]
+	end,
+
+CONFIG1 = lists:keydelete(deps, 1, CONFIG),
+CONFIG2 = lists:keydelete(erl_opts, 1, CONFIG1),
+[{erl_opts, Opts1}, {deps, Deps1} | CONFIG2].

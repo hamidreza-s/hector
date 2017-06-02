@@ -11,8 +11,7 @@
 
 start(_StartType, _StartArgs) ->
 
-    %% @TODO: make it configurable based on selected registry backend
-    application:start(syn),
+    ok = hector_registry:start(),
 
     hector_sup:start_link().
 

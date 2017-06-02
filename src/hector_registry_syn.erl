@@ -1,5 +1,6 @@
 -module(hector_registry_syn).
 
+-export([start/0]).
 -export([set_actor/2]).
 -export([unset_actor/1]).
 -export([get_actor_pid/1]).
@@ -11,6 +12,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec start() -> ok.
+start() ->
+    application:ensure_all_started(syn),
+    ok.
 
 -spec set_actor(hector_actor_name(), pid()) -> ok |
 					       {taken_pid, hector_actor_name()} |
