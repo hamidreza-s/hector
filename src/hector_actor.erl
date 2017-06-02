@@ -16,8 +16,9 @@
 -include("hector.hrl").
 
 -record(state, {
-	  caller :: pid(),
-	  actor :: hector_actor()}).
+	  actor :: hector_actor(),
+	  paths :: #{hector_id() => hector_path()}
+	 }).
 
 -define(SERVER, ?MODULE).
 -define(BYTESIZE_ID, 8).
@@ -34,7 +35,9 @@ start(#hector_actor{name = Name} = Actor) ->
 
 -spec route(hector_msg(), hector_path()) -> ok.
 route(Msg, [{RootActor, _} | _] = Path) ->
-    ok = gen_server:call(RootActor, {init_route, Msg, Path}).
+    ok = gen_server:call(RootActor, {prepare, Msg, Path}),
+    ok = gen_server:cast(RootActor, {route, Msg, Path}),
+    ok.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -43,24 +46,27 @@ route(Msg, [{RootActor, _} | _] = Path) ->
 init([Actor]) ->
     {ok, #state{actor = Actor#hector_actor{pid = self()}}}.
 
-handle_call({init_route, _Msg, _Path}, _From, State) ->
-    %% @TODO: store from in state as caller
-    %% @TODO: init routing
-    {reply, ok, State};
+handle_call({prepare, _Msg, Path}, _From,
+	    #state{paths = Paths} = State) ->
+
+    PathID = hector_utils:generate_id(),
+    {reply, ok, State#state{paths = Paths#{PathID => Path}}};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+handle_cast({route, Msg, [{CurrentActor, NextActor} | RestPath]},
+	    #state{actor = #hector_actor{pid = CurrentActor}} = State) ->
 
-handle_info({route, Msg, [{_CurrentActor, NextActor} | RestPath]}, #state{actor = Actor} = State) ->
-    %% @TODO: check if current actor is valid
+    Actor = State#state.actor,
     Handler = Actor#hector_actor.handler,
     {ok, NewState} = Handler:handle_msg(Msg, State),
-    erlang:send(NextActor, {route, Msg, RestPath}),
+    ok = gen_server:cast(NextActor, {route, Msg, RestPath}),
     {noreply, NewState};
+
+handle_cast(_Msg, State) ->
+    {noreply, State}.
 
 handle_info(_Info, State) ->
     {noreply, State}.

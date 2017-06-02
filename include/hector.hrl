@@ -28,6 +28,7 @@
 -type hector_route() :: {hector_actor(), hector_actor()}.
 -type hector_path() :: list(hector_route()).
 
+-type hector_id() :: any().
 -type hector_msg() :: any().
 -type hector_err() :: timeout
 		    | bad_request

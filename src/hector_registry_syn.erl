@@ -15,7 +15,8 @@
 
 -spec start() -> ok.
 start() ->
-    application:ensure_all_started(syn),
+    ok = syn:start(),
+    ok = syn:init(),
     ok.
 
 -spec set_actor(hector_actor_name(), pid()) -> ok |
