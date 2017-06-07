@@ -11,6 +11,7 @@
 
 start(_StartType, _StartArgs) ->
 
+    ok = lager:start(),
     ok = hector_registry:start(),
 
     hector_sup:start_link().

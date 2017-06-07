@@ -22,10 +22,11 @@
 %%%===================================================================
 
 -type hector_actor_name() :: string() | non_neg_integer().
--type hector_actor_handler() :: module().
+-type hector_actor_handler() :: module() | function().
 
 -type hector_actor() :: #hector_actor{}.
--type hector_route() :: {hector_actor(), hector_actor()}.
+-type hector_actors() :: list(hector_actor()).
+-type hector_route() :: {hector_actors(), hector_actors()}.
 -type hector_path() :: list(hector_route()).
 
 -type hector_id() :: any().

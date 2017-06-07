@@ -16,9 +16,10 @@
 -include("hector.hrl").
 
 -record(state, {
-	  actor :: hector_actor(),
-	  paths :: #{hector_id() => hector_path()}
+	  actor :: hector_actor()
 	 }).
+
+-type state() :: #state{}.
 
 -define(SERVER, ?MODULE).
 -define(BYTESIZE_ID, 8).
@@ -34,9 +35,9 @@ start(#hector_actor{name = Name} = Actor) ->
     {ok, Actor#hector_actor{pid = PID}}.
 
 -spec route(hector_msg(), hector_path()) -> ok.
-route(Msg, [{RootActor, _} | _] = Path) ->
-    ok = gen_server:call(RootActor, {prepare, Msg, Path}),
-    ok = gen_server:cast(RootActor, {route, Msg, Path}),
+route(Msg, [{RootActors, _}, _] = Path) ->
+    [gen_server:cast(RootActor#hector_actor.pid, {route, Msg, Path})
+     ||	RootActor <- RootActors],
     ok.
 
 %%%===================================================================
@@ -46,23 +47,19 @@ route(Msg, [{RootActor, _} | _] = Path) ->
 init([Actor]) ->
     {ok, #state{actor = Actor#hector_actor{pid = self()}}}.
 
-handle_call({prepare, _Msg, Path}, _From,
-	    #state{paths = Paths} = State) ->
-
-    PathID = hector_utils:generate_id(),
-    {reply, ok, State#state{paths = Paths#{PathID => Path}}};
-
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
-handle_cast({route, Msg, [{CurrentActor, NextActor} | RestPath]},
-	    #state{actor = #hector_actor{pid = CurrentActor}} = State) ->
+handle_cast({route, Msg, Path}, State) ->
 
-    Actor = State#state.actor,
-    Handler = Actor#hector_actor.handler,
-    {ok, NewState} = Handler:handle_msg(Msg, State),
-    ok = gen_server:cast(NextActor, {route, Msg, RestPath}),
+    %% @TODO
+    %% If a route has more than one sender,
+    %% the receiver (current actor) must wait
+    %% to get all the messages from all senders,
+    %% then continue to handle them
+
+    {ok, _NewMsg, NewState} = do_route(Msg, Path, State),
     {noreply, NewState};
 
 handle_cast(_Msg, State) ->
@@ -80,3 +77,34 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% @TODO: Unit tests
 %%%===================================================================
+
+-spec do_route(hector_msg(), hector_path(), state()) -> {ok, state()}.
+do_route(Msg, [{_Senders, Receivers} | RestPath], State) ->
+    Handler = (State#state.actor)#hector_actor.handler,
+    {ok, NewMsg, NewState} = if
+				 is_atom(Handler) ->
+				     Handler:handle_msg(Msg, State);
+				 is_function(Handler) ->
+				     Handler(Msg, State);
+				 true ->
+				     {ok, Msg, State}
+			     end,
+
+    [gen_server:cast(Actor#hector_actor.pid, {route, NewMsg, RestPath})
+     || Actor <- Receivers],
+
+    {ok, NewMsg, NewState};
+
+do_route(Msg, [], State) ->
+
+    Handler = (State#state.actor)#hector_actor.handler,
+    {ok, NewMsg, NewState} = if
+				 is_atom(Handler) ->
+				     Handler:handle_msg(Msg, State);
+				 is_function(Handler) ->
+				     Handler(Msg, State);
+				 true ->
+				     {ok, Msg, State}
+			     end,
+
+    {ok, NewMsg, NewState}.
