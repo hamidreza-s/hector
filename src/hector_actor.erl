@@ -35,7 +35,7 @@ start(#hector_actor{name = Name} = Actor) ->
     {ok, Actor#hector_actor{pid = PID}}.
 
 -spec route(hector_msg(), hector_path()) -> ok.
-route(Msg, [{RootActors, _}, _] = Path) ->
+route(Msg, [{RootActors, _} | _] = Path) ->
     [gen_server:cast(RootActor#hector_actor.pid, {route, Msg, Path})
      ||	RootActor <- RootActors],
     ok.
@@ -75,7 +75,7 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
-%%% @TODO: Unit tests
+%%% internal functions
 %%%===================================================================
 
 -spec do_route(hector_msg(), hector_path(), state()) -> {ok, state()}.

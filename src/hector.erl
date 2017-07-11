@@ -19,7 +19,7 @@ route(Msg, Path) ->
     hector_actor:route(Msg, Path).
 
 %%%===================================================================
-%%% @TODO: Unit tests
+%%% Unit tests
 %%%===================================================================
 
 route_test() ->
@@ -47,11 +47,29 @@ route_test() ->
     ActorSpec3 = #hector_actor{name = "bat", handler = ActorFunc3},
     {ok, Actor3} = start(ActorSpec3),
 
-    Path = [
-	    {[Actor1, Actor2], [Actor3]},
-	    {[Actor3], [Actor1, Actor2]}
-	   ],
+    ActorFunc4 = fun(Msg, State) ->
+			 ?debugFmt("ACTOR4: ~p", [{Msg, State}]),
+			 {ok, Msg, State}
+		 end,
+    ActorSpec4 = #hector_actor{name = "ban", handler = ActorFunc4},
+    {ok, Actor4} = start(ActorSpec4),
 
-    ok = route("sample_message", Path),
+    Path1 = [
+	     {[Actor1, Actor2], [Actor3]},
+	     {[Actor3], [Actor1, Actor2]}
+	    ],
+
+    ok = route("sample_message_1", Path1),
+
+    Path2 = [
+	     {[Actor1], [Actor2]},
+	     {[Actor2], [Actor3]},
+	     {[Actor3], [Actor4]},
+	     {[Actor4], [Actor3]},
+	     {[Actor3], [Actor2]},
+	     {[Actor2], [Actor1]}
+	    ],
+
+    ok = route("sample_message_2", Path2),
 
     ok.
