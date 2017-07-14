@@ -4,6 +4,7 @@
 
 -export([start/1]).
 -export([route/2]).
+-export([result/2]).
 
 -export([init/1]).
 -export([handle_call/3]).
@@ -16,7 +17,9 @@
 -include("hector.hrl").
 
 -record(state, {
-	  actor :: hector_actor()
+	  actor :: hector_actor(),
+	  results = #{} :: #{hector_ref() => hector_msg()},
+	  requests = #{} :: #{hector_ref() => pid()}
 	 }).
 
 -type state() :: #state{}.
@@ -34,11 +37,18 @@ start(#hector_actor{name = Name} = Actor) ->
     ok = hector_registry:set_actor(Name, PID),
     {ok, Actor#hector_actor{pid = PID}}.
 
--spec route(hector_msg(), hector_path()) -> ok.
+-spec route(hector_msg(), hector_path()) -> {ok, hector_ref()}.
 route(Msg, [{RootActors, _} | _] = Path) ->
-    [gen_server:cast(RootActor#hector_actor.pid, {route, Msg, Path})
-     ||	RootActor <- RootActors],
-    ok.
+    %% @TODO: check if erlang reference works in distributed setup
+    Ref = make_ref(),
+    [gen_server:cast(PID, {route, Msg, Ref, Path}) || #hector_actor{pid = PID} <- RootActors],
+    {ok, Ref}.
+
+-spec result(hector_ref(), hector_path()) -> {ok, list(hector_msg())}.
+result(Ref, Path) ->
+    {_, LastRoutes} = lists:last(Path),
+    Results = [gen_server:call(PID, {result, Ref}) || #hector_actor{pid = PID} <- LastRoutes],
+    {ok, Results}.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -47,19 +57,27 @@ route(Msg, [{RootActors, _} | _] = Path) ->
 init([Actor]) ->
     {ok, #state{actor = Actor#hector_actor{pid = self()}}}.
 
+handle_call({result, Ref}, From, #state{results = Results} = State) ->
+    case maps:find(Ref, Results) of
+	{ok, ResultMsg} ->
+	    NewState = State#state{results = maps:remove(Ref, Results)},
+	    {reply, ResultMsg, NewState};
+	_ ->
+	    NewState = State#state{requests = maps:put(Ref, From, Results)},
+	    {noreply, NewState}
+    end;
+
 handle_call(_Request, _From, State) ->
-    Reply = ok,
-    {reply, Reply, State}.
+    {reply, ok, State}.
 
-handle_cast({route, Msg, Path}, State) ->
+handle_cast({route, Msg, Ref, Path}, State) ->
 
-    %% @TODO
-    %% If a route has more than one sender,
+    %% @TODO: if a route has more than one sender,
     %% the receiver (current actor) must wait
     %% to get all the messages from all senders,
     %% then continue to handle them
 
-    {ok, _NewMsg, NewState} = do_route(Msg, Path, State),
+    {ok, _NewMsg, NewState} = do_route(Msg, Ref, Path, State),
     {noreply, NewState};
 
 handle_cast(_Msg, State) ->
@@ -78,9 +96,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%% internal functions
 %%%===================================================================
 
--spec do_route(hector_msg(), hector_path(), state()) -> {ok, state()}.
-do_route(Msg, [{_Senders, Receivers} | RestPath], State) ->
+-spec do_route(hector_msg(), hector_ref(), hector_path(), state()) -> {ok, hector_msg(), state()}.
+do_route(Msg, Ref, [{_Senders, Receivers} | RestPath], State) ->
     Handler = (State#state.actor)#hector_actor.handler,
+
     {ok, NewMsg, NewState} = if
 				 is_atom(Handler) ->
 				     Handler:handle_msg(Msg, State);
@@ -90,12 +109,11 @@ do_route(Msg, [{_Senders, Receivers} | RestPath], State) ->
 				     {ok, Msg, State}
 			     end,
 
-    [gen_server:cast(Actor#hector_actor.pid, {route, NewMsg, RestPath})
-     || Actor <- Receivers],
-
+    [gen_server:cast(PID, {route, NewMsg, Ref, RestPath}) || #hector_actor{pid = PID} <- Receivers],
+s
     {ok, NewMsg, NewState};
 
-do_route(Msg, [], State) ->
+do_route(Msg, Ref, [], #state{results = Results} = State) ->
 
     Handler = (State#state.actor)#hector_actor.handler,
     {ok, NewMsg, NewState} = if
@@ -107,4 +125,14 @@ do_route(Msg, [], State) ->
 				     {ok, Msg, State}
 			     end,
 
-    {ok, NewMsg, NewState}.
+
+    %% @NOTE: here is the final route of the path
+    %% so, we must keep the NewMsg as result in state
+    %% and check the requests map if there is any pending request
+    case maps:find(Ref, State#state.requests) of
+	{ok, PID} ->
+	    gen_server:reply(PID, NewMsg),
+	    {ok, NewMsg, NewState};
+	_ ->
+	    {ok, NewMsg, NewState#state{results = maps:put(Ref, NewMsg, Results)}}
+    end.

@@ -31,6 +31,7 @@
 
 -type hector_id() :: any().
 -type hector_msg() :: any().
+-type hector_ref() :: reference().
 -type hector_err() :: timeout
 		    | bad_request
 		    | field_required
