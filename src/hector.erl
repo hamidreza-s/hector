@@ -47,26 +47,19 @@ route_test() ->
     ActorSpec4 = #hector_actor{name = "4", handler = ActorFunc4},
     {ok, Actor4} = start(ActorSpec4),
 
-    Path1 = [
-	     {[Actor1, Actor2], [Actor3]},
-	     {[Actor3], [Actor1, Actor2]}
-	    ],
-
+    Path1 = [[Actor1, Actor2], [Actor3], [Actor1, Actor2]],
     {ok, Ref1} = route("MSG1:", Path1),
     {ok, Result1} = result(Ref1, Path1),
-    ?assertEqual(Result1, ["MSG1:(A1)(A3)(A1)","MSG1:(A2)(A3)(A2)"]),
+    ?assertEqual(["MSG1:(A1)(A3)(A1)","MSG1:(A2)(A3)(A2)"], Result1),
 
-    Path2 = [
-    	     {[Actor1], [Actor2]},
-    	     {[Actor2], [Actor3]},
-    	     {[Actor3], [Actor4]},
-    	     {[Actor4], [Actor3]},
-    	     {[Actor3], [Actor2]},
-    	     {[Actor2], [Actor1]}
-    	    ],
-
-    {ok, Ref2} = route("MSG1:", Path2),
+    Path2 = [[Actor1], [Actor2], [Actor3], [Actor4], [Actor3], [Actor2], [Actor1]],
+    {ok, Ref2} = route("MSG2:", Path2),
     {ok, Result2} = result(Ref2, Path2),
-    ?assertEqual(Result2, ["MSG1:(A1)(A2)(A3)(A4)(A3)(A2)(A1)"]),
+    ?assertEqual(["MSG2:(A1)(A2)(A3)(A4)(A3)(A2)(A1)"], Result2),
+
+    Path3 = [[Actor1, Actor2], [Actor3, Actor4]],
+    {ok, Ref3} = route("MSG3:", Path3),
+    {ok, Result3} = result(Ref3, Path3),
+    ?assertEqual(["MSG3:(A1)(A3)","MSG3:(A2)(A4)"], Result3),
 
     ok.

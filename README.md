@@ -8,7 +8,7 @@ Concepts
 
 - **Actor**: A *vertex* in a graph which can send and receive messages and process them.
 - **Route**: An *edge* between two actors which is used as a direction for sending a message from first actor the second one.
-- **Path**: A *graph* which includes a list of pathes and is used for routing messages.
+- **Path**: A *graph* which includes a list of routes and is used for routing messages.
 
 Actor Handler
 -----
@@ -27,17 +27,13 @@ Routing Patterns
 
 - One route from actor `a` to actor `b`:
 ```
-[{a, b}]
+[[a], [b]]
 ```
 - Two routes from actor `a` to both actor `b` and `c`:
 ```
-[{a, [b, c]}]
+[[a], [b, c]]
 ```
 - Two routes from both actor `a` and `b` to actor `c`:
 ```
-[{[a, b], c}]
-```
-- Four routes from both actor `a` and `b` to both actor `c` and `d`:
-```
-[{[a, b], [c, d]}]
+[[a, b], [c]]
 ```

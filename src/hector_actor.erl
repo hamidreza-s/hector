@@ -38,15 +38,15 @@ start(#hector_actor{name = Name} = Actor) ->
     {ok, Actor#hector_actor{pid = PID}}.
 
 -spec route(hector_msg(), hector_path()) -> {ok, hector_ref()}.
-route(Msg, [{RootActors, _} | _] = Path) ->
+route(Msg, [RootActors | RestPath]) ->
     %% @TODO: check if erlang reference works in distributed setup
     Ref = make_ref(),
-    [gen_server:cast(PID, {route, Msg, Ref, Path}) || #hector_actor{pid = PID} <- RootActors],
+    [gen_server:cast(PID, {route, Msg, Ref, RestPath}) || #hector_actor{pid = PID} <- RootActors],
     {ok, Ref}.
 
 -spec result(hector_ref(), hector_path()) -> {ok, list(hector_msg())}.
 result(Ref, Path) ->
-    {_, LastRoutes} = lists:last(Path),
+    LastRoutes = lists:last(Path),
     Results = [gen_server:call(PID, {result, Ref}) || #hector_actor{pid = PID} <- LastRoutes],
     {ok, Results}.
 
@@ -97,7 +97,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 -spec do_route(hector_msg(), hector_ref(), hector_path(), state()) -> {ok, hector_msg(), state()}.
-do_route(Msg, Ref, [{_Senders, Receivers} | RestPath], State) ->
+do_route(Msg, Ref, [Receivers | RestPath], State) ->
     Handler = (State#state.actor)#hector_actor.handler,
 
     {ok, NewMsg, NewState} = if
@@ -110,7 +110,7 @@ do_route(Msg, Ref, [{_Senders, Receivers} | RestPath], State) ->
 			     end,
 
     [gen_server:cast(PID, {route, NewMsg, Ref, RestPath}) || #hector_actor{pid = PID} <- Receivers],
-s
+
     {ok, NewMsg, NewState};
 
 do_route(Msg, Ref, [], #state{results = Results} = State) ->

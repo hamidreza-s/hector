@@ -27,7 +27,7 @@
 -type hector_actor() :: #hector_actor{}.
 -type hector_actors() :: list(hector_actor()).
 -type hector_route() :: {hector_actors(), hector_actors()}.
--type hector_path() :: list(hector_route()).
+-type hector_path() :: list(hector_actors()).
 
 -type hector_id() :: any().
 -type hector_msg() :: any().
