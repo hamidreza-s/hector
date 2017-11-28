@@ -1,7 +1,7 @@
 Hector
 =====
 
-Hector is a distributed actor framework for Erlang and Elixir.
+Hector is an actor-based message routing library for Erlang and Elixir.
 
 Concepts
 -----
